@@ -1,4 +1,4 @@
 streamlit
 langchain-openai
 pypdf
-tiktoken
+qrcode
