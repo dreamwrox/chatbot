@@ -199,18 +199,14 @@ else:
 # -------------------------------------------------------------
 # 3. FLOATING WHATSAPP SHARE BUTTON
 # -------------------------------------------------------------
+# -------------------------------------------------------------
+# 3. FLOATING WHATSAPP SHARE BUTTON (ZERO TRIPLE-QUOTES FIX)
+# -------------------------------------------------------------
 SHARE_TEXT = "Check out this amazing AI Homeopathic Assistant! Get answers from expert documentation instantly:"
-encoded_message = f"https://wa.me{SHARE_TEXT.replace(' ', '%20')}%20{APP_URL}"
+encoded_message = "https://wa.me" + SHARE_TEXT.replace(" ", "%20") + "%20" + APP_URL
 
-st.markdown(
-    f"""
-    <style>
-    .float-wa {{
-        position: fixed; width: 60px; height: 60px; bottom: 40px; right: 40px;
-        background-color: #25d366; color: white !important; border-radius: 50px;
-        text-align: center; font-size: 30px; box-shadow: 2px 2px 3px #999;
-        z-index: 1000; display: flex; align-items: center; justify-content: center;
-        text-decoration: none !important; transition: all 0.3s ease;
-    }}
-    .float-wa:hover {{ background-color: #128C7E; transform: scale(1.1); }}
-    </style>
+# Inline single-line styling injection to prevent f-string crashes
+st.markdown("<style>.float-wa { position: fixed; width: 60px; height: 60px; bottom: 40px; right: 40px; background-color: #25d366; color: white !important; border-radius: 50px; text-align: center; font-size: 30px; box-shadow: 2px 2px 3px #999; z-index: 1000; display: flex; align-items: center; justify-content: center; text-decoration: none !important; transition: all 0.3s ease; } .float-wa:hover { background-color: #128C7E; transform: scale(1.1); }</style>", unsafe_allow_html=True)
+
+# Directly render the actionable HTML link block
+st.markdown('<a href="' + encoded_message + '" class="float-wa" target="_blank" title="Share this bot on WhatsApp">💬</a>', unsafe_allow_html=True)
