@@ -207,3 +207,4 @@ else:
                         "1. Match the user's specific symptom variations to the remedy profiles inside the context.\n"
                         "2. Avoid generic summaries. Explicitly name 3-4 distinct remedies from the text and point out "
                         "exactly what makes each remedy relevant (modalities, specific pain types, triggers).\n"
+)
