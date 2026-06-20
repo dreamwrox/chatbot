@@ -35,15 +35,39 @@ else:
 st.set_page_config(page_title="Pro AI Homeopathic Assistant", layout="centered")
 
 # 🔒 MAXIMUM PRIVACY LAYOUT RESET
+# 🔒 FIXED MAXIMUM PRIVACY LAYOUT: Hides branding but PRESERVES the sidebar arrow control
 st.markdown("""
     <style>
-        header, [data-testid="stHeader"] {visibility: hidden !important; display: none !important;}
-        footer, [data-testid="stFooter"] {visibility: hidden !important; display: none !important;}
+        /* Hides default hamburger menu and footer elements cleanly */
         #MainMenu, [data-testid="stMainMenu"] {visibility: hidden !important; display: none !important;}
-        iframe, [class*="viewerBadge"], [data-testid*="avatar"], div[class*="StyledDecoration"] { visibility: hidden !important; display: none !important; }
-        .block-container {padding-top: 1rem !important;}
+        footer, [data-testid="stFooter"] {visibility: hidden !important; display: none !important;}
+        
+        /* Hides user profile tracking avatars and dev decorations */
+        [data-testid*="avatar"], div[class*="StyledDecoration"], .viewerBadge, [class*="viewerBadge"] {
+            visibility: hidden !important;
+            display: none !important;
+        }
+        
+        /* Hides the desktop 'Manage app' drawer button layout for viewers */
+        div[style*="position: fixed; right:"], div[style*="bottom: 0px; right: 0px;"] {
+            visibility: hidden !important;
+            display: none !important;
+        }
+        
+        /* Keeps header visibility but hides its transparent background colors */
+        header, [data-testid="stHeader"] {
+            background-color: transparent !important;
+        }
+        
+        /* Ensures the sidebar expander button control is explicitly visible and clickable */
+        [data-testid="collapsedControl"] {
+            visibility: visible !important;
+            display: block !important;
+            z-index: 999999 !important;
+        }
     </style>
 """, unsafe_allow_html=True)
+
 
 st.title("🌿 Optimized Homeopathic AI Chatbot")
 
