@@ -1,7 +1,3 @@
 streamlit
-langchain
-langchain-community
-langchain-classic
 langchain-openai
 pypdf
-chromadb
