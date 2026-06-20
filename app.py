@@ -25,7 +25,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🌿 Optimized Homeopathic AI Chatbot")
+
 
 
 # 📁 GLOBAL CONFIGURATION VARIABLES
