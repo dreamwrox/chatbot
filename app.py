@@ -13,22 +13,32 @@ from langchain_core.output_parsers import StrOutputParser
 st.set_page_config(page_title="Pro AI Homeopathic Assistant", layout="centered")
 
 # 🔒 PRIVACY OPTIMIZATION: Hides Streamlit's branding, footer, and GitHub repository links
+ABSOLUTE ULTIMATE PRIVACY BLOCK: Erases platform badges, avatars, and overlays
 st.markdown("""
     <style>
-        /* Hides main header bar and top decorators */
+        /* Hides the global system toolbar header container layout */
         header, [data-testid="stHeader"] {visibility: hidden !important; display: none !important;}
         
-        /* Hides the default hamburger main menu */
-        #MainMenu, [data-testid="stMainMenu"] {visibility: hidden !important; display: none !important;}
-        
-        /* Hides 'Hosted with Streamlit' footer container elements */
+        /* Hides the standard system footer attribution mark */
         footer, [data-testid="stFooter"] {visibility: hidden !important; display: none !important;}
         
-        /* Hides repository fork icons and viewer badges */
-        #GithubIcon, .viewerBadge, [class*="viewerBadge"] {visibility: hidden !important; display: none !important;}
+        /* Hides the default hamburger menu */
+        #MainMenu, [data-testid="stMainMenu"] {visibility: hidden !important; display: none !important;}
         
-        /* Removes top blank padding space created by the hidden header */
-        .block-container {padding-top: 2rem !important;}
+        /* FORCE HIDE THE USER IDENTITY AVATAR & DEV HOOKS OBJECTS */
+        iframe, [class*="viewerBadge"], [data-testid*="avatar"], div[class*="StyledDecoration"] {
+            visibility: hidden !important;
+            display: none !important;
+        }
+        
+        /* Overrides the lower-right tracking buttons if they escape basic rules */
+        div[style*="position: fixed; right:"], div[style*="bottom: 0px; right: 0px;"] {
+            visibility: hidden !important;
+            display: none !important;
+        }
+        
+        /* Adjust page spacing container layouts cleanly */
+        .block-container {padding-top: 1rem !important;}
     </style>
 """, unsafe_allow_html=True)
 
