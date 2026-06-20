@@ -23,10 +23,19 @@ MERCHANT_NAME = "Harjit Homeopathy"
 PREMIUM_PRICE_INR = "199"            
 APP_URL = "https://streamlit.app"
 
-# Initialize page settings exactly once
+# 🔑 SECURE OPENAI KEY INJECTION FOR ALL PLATFORMS (Hugging Face / Streamlit Cloud)
+if "OPENAI_API_KEY" in os.environ:
+    pass
+elif "OPENAI_API_KEY" in st.secrets:
+    os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+else:
+    # Fallback to direct string verification if dashboard forms aren't populated yet
+    os.environ["OPENAI_API_KEY"] = st.sidebar.text_input("API Key Verification Missing. Enter OpenAI Key:", type="password")
+
+# Initialize page configuration exactly once
 st.set_page_config(page_title="Pro AI Homeopathic Assistant", layout="centered")
 
-# 🔒 MAXIMUM PRIVACY LAYOUT RESET (Hides developer overlays, anchors, and menus)
+# 🔒 MAXIMUM PRIVACY LAYOUT RESET (Hides header anchors, tracking buttons, and branding)
 st.markdown("""
     <style>
         header, [data-testid="stHeader"] {visibility: hidden !important; display: none !important;}
@@ -39,7 +48,7 @@ st.markdown("""
 
 st.title("🌿 Optimized Homeopathic AI Chatbot")
 
-# Initialize persistent session storage flags
+# Initialize persistent session state properties
 if "user_message_count" not in st.session_state:
     st.session_state.user_message_count = 0
 
@@ -51,7 +60,11 @@ if "has_paid" not in st.session_state:
 # -------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
 def load_cached_vector_store():
+    """Loads vector index from disk if it exists, keeping data alive across reboots."""
+    if not os.environ.get("OPENAI_API_KEY"):
+        return None
     embeddings = OpenAIEmbeddings()
+    # Check if the specific JSON file cache exists on the server disk
     if os.path.exists(PERSIST_FILE) and os.path.getsize(PERSIST_FILE) > 0:
         try:
             return InMemoryVectorStore.load(PERSIST_FILE, embeddings)
@@ -59,6 +72,7 @@ def load_cached_vector_store():
             return None
     return None
 
+# Load persistent store on app start
 if "vector_store" not in st.session_state:
     st.session_state.vector_store = load_cached_vector_store()
 
@@ -120,12 +134,13 @@ with st.sidebar:
 # 2. CLIENT INTERFACE WITH PAYWALL LOGIC & CONVERSATIONAL MEMORY
 # -------------------------------------------------------------
 if st.session_state.vector_store is None:
-    st.info("The chatbot is currently offline. Please log into Admin settings to initialize the data.")
+    st.info("The chatbot is currently offline. Please log into Admin settings to initialize the data and upload your PDF book.")
 else:
     msgs = StreamlitChatMessageHistory(key="chat_messages")
     if len(msgs.messages) == 0:
         msgs.add_ai_message("Hello! Describe your exact symptoms clearly to discover tailored remedy matches.")
 
+    # Render complete chat history
     for msg in msgs.messages:
         st.chat_message(msg.type).write(msg.content)
 
@@ -165,8 +180,7 @@ else:
             unsafe_allow_html=True
         )
         
-        # Center render the generated image stream matrix
-        col1, col2, col3 = st.columns([1, 2, 1])
+        col1, col2, col3 = st.columns()
         with col2:
             st.image(byte_im, caption="Scan using any UPI App to Pay", use_container_width=True)
             st.write("---")
@@ -194,15 +208,3 @@ else:
                         "remedies based strictly on the specific physical and emotional symptoms found in the uploaded text.\n\n"
                         "CRITICAL DIRECTIONS:\n"
                         "1. Match the user's specific symptom variations to the remedy profiles inside the context.\n"
-                        "2. Avoid generic summaries. Explicitly name 3-4 distinct remedies from the text and point out "
-                        "exactly what makes each remedy relevant (modalities, specific pain types, triggers).\n"
-                        "3. Always ask the client 2 to 3 clear, specific questions to narrow down the correct remedy profile.\n\n"
-                        "Retrieved Homeopathic Context:\n{context}"
-                    )
-                    
-                    prompt = ChatPromptTemplate.from_messages([
-                        ("system", system_prompt),
-                        MessagesPlaceholder(variable_name="history"),
-                        ("human", "{question}"),
-                    ])
-                    
