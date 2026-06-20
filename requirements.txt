@@ -2,5 +2,4 @@ streamlit
 langchain
 langchain-openai
 pypdf
-faiss-cpu-no-avx2
-
+chromadb
