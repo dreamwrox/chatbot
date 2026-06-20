@@ -16,8 +16,8 @@ ADMIN_PASSWORD = "harjit123"
 FREE_MESSAGE_LIMIT = 3
 PAYMENT_LINK = "https://stripe.com" 
 
-st.set_page_config(page_title="AI Homeopathic Assistant", layout="centered")
-st.title("🌿 Homeopathic AI Chatbot")
+st.set_page_config(page_title="Pro AI Homeopathic Assistant", layout="centered")
+st.title("🌿 Optimized Homeopathic AI Chatbot")
 
 # Initialize user message counter
 if "user_message_count" not in st.session_state:
@@ -28,23 +28,26 @@ if "has_paid" not in st.session_state:
     st.session_state.has_paid = False
 
 # -------------------------------------------------------------
-# PERMANENT FILE CACHING FOR PDF DATA
+# ARCHITECTURE OPTIMIZATION 1: PERMANENT FILE CACHING
 # -------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
 def load_cached_vector_store():
+    """Loads vector index from disk if it exists, keeping data alive across reboots."""
     embeddings = OpenAIEmbeddings()
-    if os.path.exists(PERSIST_FILE):
+    # Check if the specific JSON file cache exists on the server disk
+    if os.path.exists(PERSIST_FILE) and os.path.getsize(PERSIST_FILE) > 0:
         try:
             return InMemoryVectorStore.load(PERSIST_FILE, embeddings)
         except Exception:
             return None
     return None
 
+# Load persistent store on app start
 if "vector_store" not in st.session_state:
     st.session_state.vector_store = load_cached_vector_store()
 
 # -------------------------------------------------------------
-# 1. ADMIN SIDEBAR (Generates the JSON file automatically)
+# ADMIN SIDEBAR CONTROL PANEL (WITH FASTER PROGRESS TRACKING)
 # -------------------------------------------------------------
 with st.sidebar:
     st.header("Admin Settings")
@@ -55,48 +58,72 @@ with st.sidebar:
         uploaded_file = st.file_uploader("Upload New Knowledge Base (PDF)", type="pdf")
         
         if uploaded_file is not None:
-            with st.spinner("Optimizing text segments & building vector space..."):
-                with open("temp.pdf", "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-                
-                loader = PyPDFLoader("temp.pdf")
-                raw_documents = loader.load()
-                
-                text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200, length_function=len)
-                optimized_docs = text_splitter.split_documents(raw_documents)
-                
-                embeddings = OpenAIEmbeddings()
-                vector_store = InMemoryVectorStore.from_documents(optimized_docs, embeddings)
-                
-                # Cleanup old legacy directory blocks if they exist
-                if os.path.exists("vector_store_cache") and os.path.isdir("vector_store_cache"):
-                    shutil.rmtree("vector_store_cache")
-                
-                # Auto-generate the fresh JSON file
-                vector_store.dump(PERSIST_FILE)
-                
-                st.session_state.vector_store = vector_store
-                os.remove("temp.pdf")
-                st.success("Knowledge base updated successfully!")
-                st.rerun()
+            # Create interactive visual progress indicators
+            progress_text = st.empty()
+            progress_bar = st.progress(0)
+            
+            with open("temp.pdf", "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            
+            progress_text.text("1/4 📖 Reading PDF pages...")
+            progress_bar.progress(15)
+            
+            loader = PyPDFLoader("temp.pdf")
+            raw_documents = loader.load()
+            
+            progress_text.text(f"2/4 ✂️ Splitting {len(raw_documents)} pages into text chunks...")
+            progress_bar.progress(40)
+            
+            # SPEED OPTIMIZATION: Tailored overlap size to minimize data compilation lag
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,      
+                chunk_overlap=50,    
+                length_function=len
+            )
+            optimized_docs = text_splitter.split_documents(raw_documents)
+            
+            progress_text.text(f"3/4 🧠 Generating AI vectors for {len(optimized_docs)} chunks...")
+            progress_bar.progress(70)
+            
+            embeddings = OpenAIEmbeddings()
+            vector_store = InMemoryVectorStore.from_documents(optimized_docs, embeddings)
+            
+            progress_text.text("4/4 💾 Saving database file to disk...")
+            progress_bar.progress(90)
+            
+            # Legacy cleanup safety check
+            if os.path.exists("vector_store_cache") and os.path.isdir("vector_store_cache"):
+                shutil.rmtree("vector_store_cache")
+            
+            # Fixed variable matching mapping string key reference
+            vector_store.dump(PERSIST_FILE)
+            st.session_state.vector_store = vector_store
+            
+            os.remove("temp.pdf")
+            progress_text.text("✅ Completed successfully!")
+            progress_bar.progress(100)
+            st.success("Knowledge base updated successfully!")
+            st.rerun()
+            
     elif password:
         st.error("Incorrect password.")
 
 # -------------------------------------------------------------
-# 2. CLIENT INTERFACE WITH PAYWALL LOGIC
+# CLIENT INTERFACE WITH PAYWALL LOGIC & CONVERSATIONAL MEMORY
 # -------------------------------------------------------------
 if st.session_state.vector_store is None:
     st.info("The chatbot is currently offline. Please log into Admin settings to initialize the medical data.")
 else:
+    # NATIVE SESSION CHAT HISTORY STORAGE
     msgs = StreamlitChatMessageHistory(key="chat_messages")
     if len(msgs.messages) == 0:
         msgs.add_ai_message("Hello! Describe your exact symptoms clearly to discover tailored remedy matches.")
 
-    # Render history UI
+    # Render complete stylized history UI
     for msg in msgs.messages:
         st.chat_message(msg.type).write(msg.content)
 
-    # Check if user hit the limit
+    # 🔒 PREMIUM TRIGGER CHECK
     reached_limit = st.session_state.user_message_count >= FREE_MESSAGE_LIMIT and not st.session_state.has_paid
 
     if reached_limit:
@@ -121,6 +148,7 @@ else:
             st.rerun()
             
     else:
+        # Chat text block executes if below threshold limits
         if user_query := st.chat_input("Type your specific symptoms here..."):
             st.chat_message("user").write(user_query)
             st.session_state.user_message_count += 1
