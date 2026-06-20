@@ -69,7 +69,6 @@ def load_cached_vector_store():
             return None
     return None
 
-# PROTECTIVE LOADING ROUTINE: Locks the index into global session state tracking
 if "vector_store" not in st.session_state or st.session_state.vector_store is None:
     st.session_state.vector_store = load_cached_vector_store()
 
@@ -107,7 +106,6 @@ with st.sidebar:
             progress_bar.progress(70)
             
             embeddings = OpenAIEmbeddings()
-            # Generate new store asset
             new_store = InMemoryVectorStore.from_documents(optimized_docs, embeddings)
             
             progress_text.text("4/4 💾 Saving database serialization index...")
@@ -189,7 +187,7 @@ else:
                     st.error("Please enter a valid 12-digit numeric transaction UTR tracking code.")
     else:
         if user_query := st.chat_input("Type your specific symptoms here..."):
-            # Update display immediately on raw input capture
+            # Update history states
             st.chat_message("user").write(user_query)
             msgs.add_user_message(user_query)
             st.session_state.user_message_count += 1
@@ -207,4 +205,6 @@ else:
                         "1. Match the user's specific symptom variations to the remedy profiles inside the context.\n"
                         "2. Avoid generic summaries. Explicitly name 3-4 distinct remedies from the text and point out "
                         "exactly what makes each remedy relevant (modalities, specific pain types, triggers).\n"
-)
+                        "3. Always ask the client 2 to 3 clear, specific questions to narrow down the correct remedy profile.\n\n"
+                        "Retrieved Homeopathic Context:\n{context}"
+                    )
