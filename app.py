@@ -178,7 +178,7 @@ else:
             unsafe_allow_html=True
         )
         
-        col1, col2, col3 = st.columns()
+        col1, col2, col3 = st.columns(3)
         with col2:
             st.image(byte_im, caption="Scan using any UPI App to Pay", use_container_width=True)
             st.write("---")
