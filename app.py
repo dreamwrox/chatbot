@@ -211,6 +211,6 @@ else:
 "2. Avoid generic summaries. Explicitly name 3-4 distinct remedies from the text and point out "
 "exactly what makes each remedy relevant.\n"
 "3. Always ask the client 2 to 3 clear, specific questions to narrow down the correct remedy profile.\n\n"
-"Retrieved Homeopathic Context:\n{context}"
+"Retrieved Homeopathic Context:\n{context}")
                     )
                     
