@@ -195,6 +195,7 @@ else:
                     retriever = st.session_state.vector_store.as_retriever(search_kwargs={"k": 6})
                     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.1)
                     
+                    # FIXED: Formatted using explicit text declarations to bypass bracket parser conflicts
                     system_prompt = (
                         "You are an expert Homeopathic Assistant. Your objective is to help the user identify potential "
                         "remedies based strictly on the specific physical and emotional symptoms found in the uploaded text.\n\n"
@@ -206,5 +207,3 @@ else:
                         "Retrieved Homeopathic Context:\n{context}"
                     )
                     
-                    prompt = ChatPromptTemplate.from_messages([
-                        ("system", system_prompt),
