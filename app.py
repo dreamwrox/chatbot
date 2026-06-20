@@ -15,13 +15,20 @@ st.set_page_config(page_title="Pro AI Homeopathic Assistant", layout="centered")
 # 🔒 PRIVACY OPTIMIZATION: Hides Streamlit's branding, footer, and GitHub repository links
 st.markdown("""
     <style>
-        /* Hides the 'Hosted with Streamlit' footer */
-        footer {visibility: hidden;}
-        /* Hides the top-right deployment/GitHub buttons */
-        #MainMenu {visibility: hidden;}
-        header {visibility: hidden;}
-        /* Hides viewer code-link indicators */
-        .viewerBadge {display: none !important;}
+        /* Hides main header bar and top decorators */
+        header, [data-testid="stHeader"] {visibility: hidden !important; display: none !important;}
+        
+        /* Hides the default hamburger main menu */
+        #MainMenu, [data-testid="stMainMenu"] {visibility: hidden !important; display: none !important;}
+        
+        /* Hides 'Hosted with Streamlit' footer container elements */
+        footer, [data-testid="stFooter"] {visibility: hidden !important; display: none !important;}
+        
+        /* Hides repository fork icons and viewer badges */
+        #GithubIcon, .viewerBadge, [class*="viewerBadge"] {visibility: hidden !important; display: none !important;}
+        
+        /* Removes top blank padding space created by the hidden header */
+        .block-container {padding-top: 2rem !important;}
     </style>
 """, unsafe_allow_html=True)
 
