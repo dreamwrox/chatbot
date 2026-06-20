@@ -12,7 +12,7 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 
 # Use a local directory to save files permanently on the server disk
-PERSIST_DIR = "vector_store_cache"
+PERSIST_DIR = "vector_store_cache.json"
 ADMIN_PASSWORD = "harjit123"
 
 st.set_page_config(page_title="Pro AI Homeopathic Assistant", layout="centered")
@@ -70,10 +70,8 @@ with st.sidebar:
                 embeddings = OpenAIEmbeddings()
                 vector_store = InMemoryVectorStore.from_documents(optimized_docs, embeddings)
                 
-                if os.path.exists(PERSIST_DIR):
-                    shutil.rmtree(PERSIST_DIR)
-                os.makedirs(PERSIST_DIR, exist_ok=True)
-                vector_store.dump(PERSIST_DIR)
+                vector_store.dump(PERSIST_FILE)
+
                 
                 st.session_state.vector_store = vector_store
                 os.remove("temp.pdf")
