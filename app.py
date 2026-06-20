@@ -1,6 +1,8 @@
 import os
 import shutil
 import streamlit as st
+import qrcode
+from io import BytesIO
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.vectorstores import InMemoryVectorStore
@@ -10,71 +12,39 @@ from langchain_community.chat_message_histories import StreamlitChatMessageHisto
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 
-st.set_page_config(page_title="Pro AI Homeopathic Assistant", layout="centered")
-
-# 🔒 PRIVACY OPTIMIZATION: Hides Streamlit's branding, footer, and GitHub repository links
-#ABSOLUTE ULTIMATE PRIVACY BLOCK: Erases platform badges, avatars, and overlays
-st.markdown("""
-    <style>
-        /* Hides the global system toolbar header container layout */
-        header, [data-testid="stHeader"] {visibility: hidden !important; display: none !important;}
-        
-        /* Hides the standard system footer attribution mark */
-        footer, [data-testid="stFooter"] {visibility: hidden !important; display: none !important;}
-        
-        /* Hides the default hamburger menu */
-        #MainMenu, [data-testid="stMainMenu"] {visibility: hidden !important; display: none !important;}
-        
-        /* FORCE HIDE THE USER IDENTITY AVATAR & DEV HOOKS OBJECTS */
-        iframe, [class*="viewerBadge"], [data-testid*="avatar"], div[class*="StyledDecoration"] {
-            visibility: hidden !important;
-            display: none !important;
-        }
-        
-        /* Overrides the lower-right tracking buttons if they escape basic rules */
-        div[style*="position: fixed; right:"], div[style*="bottom: 0px; right: 0px;"] {
-            visibility: hidden !important;
-            display: none !important;
-        }
-        
-        /* Adjust page spacing container layouts cleanly */
-        .block-container {padding-top: 1rem !important;}
-    </style>
-""", unsafe_allow_html=True)
-
-
-
-
 # 📁 GLOBAL CONFIGURATION VARIABLES
 PERSIST_FILE = "vector_store_cache.json"
 ADMIN_PASSWORD = "harjit123"
 FREE_MESSAGE_LIMIT = 3
-# Paste your custom redirect-enabled Stripe Link here:
-PAYMENT_LINK = "https://stripe.com" 
-# Configure your production web address for WhatsApp sharing:
+
+# 🇮🇳 NATIVE INDIAN UPI ROUTING PARAMETERS
+YOUR_UPI_ID = "harjeet.pahwa@oksbi"       
+MERCHANT_NAME = "Harjit Homeopathy"  
+PREMIUM_PRICE_INR = "199"            
 APP_URL = "https://streamlit.app"
 
+# Initialize page settings exactly once
 st.set_page_config(page_title="Pro AI Homeopathic Assistant", layout="centered")
+
+# 🔒 MAXIMUM PRIVACY LAYOUT RESET (Hides developer overlays, anchors, and menus)
+st.markdown("""
+    <style>
+        header, [data-testid="stHeader"] {visibility: hidden !important; display: none !important;}
+        footer, [data-testid="stFooter"] {visibility: hidden !important; display: none !important;}
+        #MainMenu, [data-testid="stMainMenu"] {visibility: hidden !important; display: none !important;}
+        iframe, [class*="viewerBadge"], [data-testid*="avatar"], div[class*="StyledDecoration"] { visibility: hidden !important; display: none !important; }
+        .block-container {padding-top: 1rem !important;}
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("🌿 Optimized Homeopathic AI Chatbot")
 
-# Initialize state trackers
+# Initialize persistent session storage flags
 if "user_message_count" not in st.session_state:
     st.session_state.user_message_count = 0
 
 if "has_paid" not in st.session_state:
     st.session_state.has_paid = False
-
-# -------------------------------------------------------------
-# 🔄 AUTOMATED PAYMENT VERIFICATION VIA URL PARAMS
-# -------------------------------------------------------------
-query_params = st.query_params
-
-# If Stripe redirects them back with ?status=success, auto-unlock premium status
-if "status" in query_params and query_params["status"] == "success":
-    st.session_state.has_paid = True
-    # Clear URL params out cleanly so refreshing the page later resets state if needed
-    st.query_params.clear()
-    st.success("🎉 Payment verified successfully! Premium access unlocked.")
 
 # -------------------------------------------------------------
 # ARCHITECTURE OPTIMIZATION: PERMANENT FILE CACHING
@@ -93,7 +63,7 @@ if "vector_store" not in st.session_state:
     st.session_state.vector_store = load_cached_vector_store()
 
 # -------------------------------------------------------------
-# 1. ADMIN SIDEBAR CONTROL PANEL
+# 1. ADMIN SIDEBAR CONTROL PANEL (Builds database automatically)
 # -------------------------------------------------------------
 with st.sidebar:
     st.header("Admin Settings")
@@ -119,20 +89,16 @@ with st.sidebar:
             progress_text.text(f"2/4 ✂️ Splitting {len(raw_documents)} pages into text chunks...")
             progress_bar.progress(40)
             
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,      
-                chunk_overlap=50,    
-                length_function=len
-            )
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=50, length_function=len)
             optimized_docs = text_splitter.split_documents(raw_documents)
             
-            progress_text.text(f"3/4 🧠 Generating AI vectors for {len(optimized_docs)} chunks...")
+            progress_text.text(f"3/4 🧠 Generating AI vectors...")
             progress_bar.progress(70)
             
             embeddings = OpenAIEmbeddings()
             vector_store = InMemoryVectorStore.from_documents(optimized_docs, embeddings)
             
-            progress_text.text("4/4 💾 Saving database file to disk...")
+            progress_text.text("4/4 💾 Saving database serialization index...")
             progress_bar.progress(90)
             
             if os.path.exists("vector_store_cache") and os.path.isdir("vector_store_cache"):
@@ -163,24 +129,55 @@ else:
     for msg in msgs.messages:
         st.chat_message(msg.type).write(msg.content)
 
-    # Check if user hit their usage limits
+    # Calculate payment gate condition state
     reached_limit = st.session_state.user_message_count >= FREE_MESSAGE_LIMIT and not st.session_state.has_paid
 
     if reached_limit:
         st.warning(f"⚠️ You have reached your limit of {FREE_MESSAGE_LIMIT} free messages.")
+        
+        # 🔗 CONSTRUCT DEEP-LINK INTENT URI STRING
+        clean_name = MERCHANT_NAME.replace(" ", "%20")
+        upi_string = f"upi://pay?pa={YOUR_UPI_ID}&pn={clean_name}&am={PREMIUM_PRICE_INR}&cu=INR"
+        
+        # Draw payment QR code vector image asset
+        qr = qrcode.QRCode(version=1, box_size=10, border=2)
+        qr.add_data(upi_string)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        buf = BytesIO()
+        img.save(buf, format="PNG")
+        byte_im = buf.getvalue()
+        
         st.markdown(
             f"""
-            <div style="background-color:#fff3cd; padding:20px; border-radius:10px; border:1px solid #ffeeba; text-align:center;">
-                <h3>Unlock Unlimited Consultations 💎</h3>
-                <p>Gain unrestricted access to our entire homeopathic database and get unlimited answers.</p>
-                <a href="{PAYMENT_LINK}" target="_blank" style="background-color:#28a745; color:white; padding:10px 20px; text-decoration:none; border-radius:5px; font-weight:bold; display:inline-block; margin-top:10px;">
-                    Unlock Premium Access Now
-                </a>
+            <div style="background-color:#f8f9fa; padding:25px; border-radius:12px; border:2px solid #e9ecef; text-align:center; margin-bottom: 20px;">
+                <h3 style="color:#1d3557; margin-bottom:5px;">Unlock Unlimited Consultations 💎</h3>
+                <p style="color:#4a5568; font-size:15px;">Gain unrestricted access to our database for a one-time fee of <b>₹{PREMIUM_PRICE_INR}</b>.</p>
+                <div style="margin: 20px 0;">
+                    <a href="{upi_string}" style="background-color:#10b981; color:white; padding:12px 25px; text-decoration:none; border-radius:8px; font-weight:bold; display:inline-block; font-size:16px; box-shadow:0 4px 6px rgba(16,185,129,0.2);">
+                        Pay via Google Pay / PhonePe / UPI
+                    </a>
+                </div>
+                <p style="color:#718096; font-size:13px;">On mobile devices, tap the button to launch your banking wallet. On computers, scan the code below:</p>
             </div>
-            <br>
             """, 
             unsafe_allow_html=True
         )
+        
+        # Center render the generated image stream matrix
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.image(byte_im, caption="Scan using any UPI App to Pay", use_container_width=True)
+            st.write("---")
+            utr_input = st.text_input("Enter your 12-digit UPI Ref / UTR No. after making the transfer", max_chars=12)
+            if st.button("Verify Transfer & Unlock"):
+                if len(utr_input) == 12 and utr_input.isdigit():
+                    st.session_state.has_paid = True
+                    st.success("Payment received! Premium access unlocked.")
+                    st.rerun()
+                else:
+                    st.error("Please enter a valid 12-digit numeric transaction UTR tracking code.")
     else:
         if user_query := st.chat_input("Type your specific symptoms here..."):
             st.chat_message("user").write(user_query)
@@ -209,39 +206,3 @@ else:
                         ("human", "{question}"),
                     ])
                     
-                    # FIXED: Properly terminated formatting block setup
-                    def format_docs(docs):
-                        return "\n\n".join(doc.page_content for doc in docs)
-                    
-                    rag_chain = (
-                        {
-                            "context": retriever | format_docs,
-                            "question": RunnablePassthrough(),
-                            "history": lambda x: msgs.messages
-                        }
-                        | prompt
-                        | llm
-                        | StrOutputParser()
-                    )
-                    
-                    response = rag_chain.invoke(user_query)
-                    st.write(response)
-                    
-                    msgs.add_user_message(user_query)
-                    msgs.add_ai_message(response)
-                    st.rerun()
-
-# -------------------------------------------------------------
-# 3. FLOATING WHATSAPP SHARE BUTTON
-# -------------------------------------------------------------
-# -------------------------------------------------------------
-# 3. FLOATING WHATSAPP SHARE BUTTON (ZERO TRIPLE-QUOTES FIX)
-# -------------------------------------------------------------
-SHARE_TEXT = "Check out this amazing AI Homeopathic Assistant! Get answers from expert documentation instantly:"
-encoded_message = "https://web.whatsapp.com/" + SHARE_TEXT.replace(" ", "%20") + "%20" + APP_URL
-
-# Inline single-line styling injection to prevent f-string crashes
-st.markdown("<style>.float-wa { position: fixed; width: 60px; height: 60px; bottom: 40px; right: 40px; background-color: #25d366; color: white !important; border-radius: 50px; text-align: center; font-size: 30px; box-shadow: 2px 2px 3px #999; z-index: 1000; display: flex; align-items: center; justify-content: center; text-decoration: none !important; transition: all 0.3s ease; } .float-wa:hover { background-color: #128C7E; transform: scale(1.1); }</style>", unsafe_allow_html=True)
-
-# Directly render the actionable HTML link block
-st.markdown('<a href="' + encoded_message + '" class="float-wa" target="_blank" title="Share this bot on WhatsApp">💬</a>', unsafe_allow_html=True)
