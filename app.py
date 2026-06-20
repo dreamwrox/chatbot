@@ -14,27 +14,39 @@ from langchain_core.output_parsers import StrOutputParser
 PERSIST_FILE = "vector_store_cache.json"
 ADMIN_PASSWORD = "harjit123"
 FREE_MESSAGE_LIMIT = 3
+# Paste your custom redirect-enabled Stripe Link here:
 PAYMENT_LINK = "https://stripe.com" 
+# Configure your production web address for WhatsApp sharing:
+APP_URL = "https://streamlit.app"
 
 st.set_page_config(page_title="Pro AI Homeopathic Assistant", layout="centered")
 st.title("🌿 Optimized Homeopathic AI Chatbot")
 
-# Initialize user message counter
+# Initialize state trackers
 if "user_message_count" not in st.session_state:
     st.session_state.user_message_count = 0
 
-# Track if the user has paid
 if "has_paid" not in st.session_state:
     st.session_state.has_paid = False
 
 # -------------------------------------------------------------
-# ARCHITECTURE OPTIMIZATION 1: PERMANENT FILE CACHING
+# 🔄 AUTOMATED PAYMENT VERIFICATION VIA URL PARAMS
+# -------------------------------------------------------------
+query_params = st.query_params
+
+# If Stripe redirects them back with ?status=success, auto-unlock premium status
+if "status" in query_params and query_params["status"] == "success":
+    st.session_state.has_paid = True
+    # Clear URL params out cleanly so refreshing the page later resets state if needed
+    st.query_params.clear()
+    st.success("🎉 Payment verified successfully! Premium access unlocked.")
+
+# -------------------------------------------------------------
+# ARCHITECTURE OPTIMIZATION: PERMANENT FILE CACHING
 # -------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
 def load_cached_vector_store():
-    """Loads vector index from disk if it exists, keeping data alive across reboots."""
     embeddings = OpenAIEmbeddings()
-    # Check if the specific JSON file cache exists on the server disk
     if os.path.exists(PERSIST_FILE) and os.path.getsize(PERSIST_FILE) > 0:
         try:
             return InMemoryVectorStore.load(PERSIST_FILE, embeddings)
@@ -42,12 +54,11 @@ def load_cached_vector_store():
             return None
     return None
 
-# Load persistent store on app start
 if "vector_store" not in st.session_state:
     st.session_state.vector_store = load_cached_vector_store()
 
 # -------------------------------------------------------------
-# ADMIN SIDEBAR CONTROL PANEL (WITH FASTER PROGRESS TRACKING)
+# 1. ADMIN SIDEBAR CONTROL PANEL
 # -------------------------------------------------------------
 with st.sidebar:
     st.header("Admin Settings")
@@ -58,7 +69,6 @@ with st.sidebar:
         uploaded_file = st.file_uploader("Upload New Knowledge Base (PDF)", type="pdf")
         
         if uploaded_file is not None:
-            # Create interactive visual progress indicators
             progress_text = st.empty()
             progress_bar = st.progress(0)
             
@@ -74,7 +84,6 @@ with st.sidebar:
             progress_text.text(f"2/4 ✂️ Splitting {len(raw_documents)} pages into text chunks...")
             progress_bar.progress(40)
             
-            # SPEED OPTIMIZATION: Tailored overlap size to minimize data compilation lag
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=1000,      
                 chunk_overlap=50,    
@@ -91,11 +100,9 @@ with st.sidebar:
             progress_text.text("4/4 💾 Saving database file to disk...")
             progress_bar.progress(90)
             
-            # Legacy cleanup safety check
             if os.path.exists("vector_store_cache") and os.path.isdir("vector_store_cache"):
                 shutil.rmtree("vector_store_cache")
             
-            # Fixed variable matching mapping string key reference
             vector_store.dump(PERSIST_FILE)
             st.session_state.vector_store = vector_store
             
@@ -109,21 +116,19 @@ with st.sidebar:
         st.error("Incorrect password.")
 
 # -------------------------------------------------------------
-# CLIENT INTERFACE WITH PAYWALL LOGIC & CONVERSATIONAL MEMORY
+# 2. CLIENT INTERFACE WITH PAYWALL LOGIC & CONVERSATIONAL MEMORY
 # -------------------------------------------------------------
 if st.session_state.vector_store is None:
-    st.info("The chatbot is currently offline. Please log into Admin settings to initialize the medical data.")
+    st.info("The chatbot is currently offline. Please log into Admin settings to initialize the data.")
 else:
-    # NATIVE SESSION CHAT HISTORY STORAGE
     msgs = StreamlitChatMessageHistory(key="chat_messages")
     if len(msgs.messages) == 0:
         msgs.add_ai_message("Hello! Describe your exact symptoms clearly to discover tailored remedy matches.")
 
-    # Render complete stylized history UI
     for msg in msgs.messages:
         st.chat_message(msg.type).write(msg.content)
 
-    # 🔒 PREMIUM TRIGGER CHECK
+    # Check if user hit their usage limits
     reached_limit = st.session_state.user_message_count >= FREE_MESSAGE_LIMIT and not st.session_state.has_paid
 
     if reached_limit:
@@ -141,14 +146,7 @@ else:
             """, 
             unsafe_allow_html=True
         )
-        
-        if st.button("Simulate Successful Payment (For Developer Testing)"):
-            st.session_state.has_paid = True
-            st.success("Premium access unlocked!")
-            st.rerun()
-            
     else:
-        # Chat text block executes if below threshold limits
         if user_query := st.chat_input("Type your specific symptoms here..."):
             st.chat_message("user").write(user_query)
             st.session_state.user_message_count += 1
@@ -196,3 +194,22 @@ else:
                     msgs.add_user_message(user_query)
                     msgs.add_ai_message(response)
                     st.rerun()
+
+# -------------------------------------------------------------
+# 3. FLOATING WHATSAPP SHARE BUTTON
+# -------------------------------------------------------------
+SHARE_TEXT = "Check out this amazing AI Homeopathic Assistant! Get answers from expert documentation instantly:"
+encoded_message = f"https://wa.me{SHARE_TEXT.replace(' ', '%20')}%20{APP_URL}"
+
+st.markdown(
+    f"""
+    <style>
+    .float-wa {{
+        position: fixed; width: 60px; height: 60px; bottom: 40px; right: 40px;
+        background-color: #25d366; color: white !important; border-radius: 50px;
+        text-align: center; font-size: 30px; box-shadow: 2px 2px 3px #999;
+        z-index: 1000; display: flex; align-items: center; justify-content: center;
+        text-decoration: none !important; transition: all 0.3s ease;
+    }}
+    .float-wa:hover {{ background-color: #128C7E; transform: scale(1.1); }}
+    </style>
