@@ -12,8 +12,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 
-OPENAI_API_KEY = "APIKEYHERE"
-os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
+
 
 #Flask App
 app = Flask(__name__)
