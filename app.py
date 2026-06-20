@@ -7,11 +7,11 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 
-ADMIN_PASSWORD = "harjit123" # Change this!
+ADMIN_PASSWORD = "harjit123" # Keep or change your password here
 
-st.set_page_config(page_title="AI Customer Assistant", layout="centered")
-st.title("🤖 Customer Support Chatbot")
-st.write("Welcome! Ask any question about our services or documentation below.")
+st.set_page_config(page_title="AI Homeopathic Assistant", layout="centered")
+st.title("🌿 Homeopathic Support Chatbot")
+st.write("Describe your exact symptoms below to find matching remedies from the uploaded documentation.")
 
 # Initialize the vector store in Streamlit's global app session state
 if "vector_store" not in st.session_state:
@@ -63,21 +63,33 @@ else:
             st.markdown(message["content"])
 
     # User input chat loop
-    if user_query := st.chat_input("Type your question here..."):
+    if user_query := st.chat_input("Type your symptoms here (e.g., dry cough, worse at night)..."):
         with st.chat_message("user"):
             st.markdown(user_query)
         st.session_state.messages.append({"role": "user", "content": user_query})
 
         with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                # Use the global state vector retriever
-                retriever = st.session_state.vector_store.as_retriever(search_kwargs={"k": 3})
-                llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+            with st.spinner("Analyzing documentation..."):
+                # FIX 1: Increased 'k' to 7 so the AI reads much more data from your PDF at once
+                retriever = st.session_state.vector_store.as_retriever(search_kwargs={"k": 7})
+                llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2) # Low temperature ensures strict factual accuracy
                 
+                # FIX 2: Upgraded system prompt to demand specific remedy profiling and diagnostic follow-ups
                 system_prompt = (
-                    "You are a helpful customer service assistant. Use the following pieces of retrieved "
-                    "context to answer the question. If you don't know the answer, say that you don't know.\n\n"
-                    "Context:\n{context}"
+                    "You are an expert Homeopathic Assistant. Your goal is to help the user identify potential "
+                    "remedies based strictly on the specific physical and emotional symptoms found in the uploaded text.\n\n"
+                    
+                    "CRITICAL DIRECTIONS:\n"
+                    "1. DO NOT give a generic, high-level overview or a generic step-by-step workflow chart.\n"
+                    "2. Scan the retrieved context below for concrete homeopathic remedies (e.g., Aconite, Belladonna, Pulsatilla, Bryonia) "
+                    "that match the user's condition. List 3 or 4 possible options alongside their specific symptom modalities "
+                    "(what makes it better/worse, type of discharge, mental state) as written in the text.\n"
+                    "3. Always ask the client 2 to 3 clear, specific questions to narrow down the correct remedy profile "
+                    "(e.g., 'Is your cough wet or dry?', 'Does movement make the pain worse?', 'Are your nasal discharges watery or thick?').\n"
+                    "4. If the retrieved context does not contain specific remedies for the query, politely ask the user for "
+                    "more specific symptoms to help match the text data.\n\n"
+                    
+                    "Retrieved Homeopathic Documentation Context:\n{context}"
                 )
                 
                 prompt = ChatPromptTemplate.from_messages([
