@@ -10,6 +10,24 @@ from langchain_community.chat_message_histories import StreamlitChatMessageHisto
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 
+st.set_page_config(page_title="Pro AI Homeopathic Assistant", layout="centered")
+
+# 🔒 PRIVACY OPTIMIZATION: Hides Streamlit's branding, footer, and GitHub repository links
+st.markdown("""
+    <style>
+        /* Hides the 'Hosted with Streamlit' footer */
+        footer {visibility: hidden;}
+        /* Hides the top-right deployment/GitHub buttons */
+        #MainMenu {visibility: hidden;}
+        header {visibility: hidden;}
+        /* Hides viewer code-link indicators */
+        .viewerBadge {display: none !important;}
+    </style>
+""", unsafe_allow_html=True)
+
+st.title("🌿 Optimized Homeopathic AI Chatbot")
+
+
 # 📁 GLOBAL CONFIGURATION VARIABLES
 PERSIST_FILE = "vector_store_cache.json"
 ADMIN_PASSWORD = "harjit123"
