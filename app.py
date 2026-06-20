@@ -65,7 +65,6 @@ def get_vector_store():
     if not os.environ.get("OPENAI_API_KEY"):
         return None
     embeddings = OpenAIEmbeddings()
-    # Check if the persistent JSON file cache exists on the server disk
     if os.path.exists(PERSIST_FILE) and os.path.getsize(PERSIST_FILE) > 0:
         try:
             return InMemoryVectorStore.load(PERSIST_FILE, embeddings)
@@ -78,7 +77,7 @@ if "vector_store" not in st.session_state or st.session_state.vector_store is No
     st.session_state.vector_store = get_vector_store()
 
 # -------------------------------------------------------------
-# 1. ADMIN SIDEBAR CONTROL PANEL (Safely processes large 38MB files)
+# 1. ADMIN SIDEBAR CONTROL PANEL
 # -------------------------------------------------------------
 with st.sidebar:
     st.header("Admin Settings")
@@ -104,11 +103,10 @@ with st.sidebar:
             progress_text.text(f"2/4 ✂️ Segmenting text elements...")
             progress_bar.progress(40)
             
-            # Optimized to minimize processing loops
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=100, length_function=len)
             optimized_docs = text_splitter.split_documents(raw_documents)
             
-            progress_text.text(f"3/4 🧠 Compiling AI structural vector spaces...")
+            progress_text.text(f"3/4 🧠 Generating AI vectors...")
             progress_bar.progress(70)
             
             embeddings = OpenAIEmbeddings()
@@ -117,11 +115,9 @@ with st.sidebar:
             progress_text.text("4/4 💾 Saving database serialization index...")
             progress_bar.progress(90)
             
-            # Cleanup any legacy folders
             if os.path.exists("vector_store_cache") and os.path.isdir("vector_store_cache"):
                 shutil.rmtree("vector_store_cache")
             
-            # Save the new pure JSON file
             new_store.dump(PERSIST_FILE)
             st.session_state.vector_store = new_store
             
@@ -130,7 +126,6 @@ with st.sidebar:
             progress_bar.progress(100)
             st.success("Knowledge base updated successfully!")
             
-            # Manual switch to unlock interface updates cleanly
             if st.button("Launch Chat Interface 🚀"):
                 st.rerun()
             
@@ -207,8 +202,15 @@ else:
                     retriever = st.session_state.vector_store.as_retriever(search_kwargs={"k": 5})
                     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.1)
                     
+                    # FIXED: Aligned left margin block parameters to bypass structural IndentationErrors
                     system_prompt = (
-                        "You are an expert Homeopathic Assistant. Your objective is to help the user identify potential "
-                        "remedies based strictly on the specific physical and emotional symptoms found in the uploaded text.\n\n")
-                        "CRITICAL DIRECTIONS:\n"
-                        "1. Match the user's specific symptom variations to the remedy profiles inside the context.\n"
+"You are an expert Homeopathic Assistant. Your objective is to help the user identify potential "
+"remedies based strictly on the specific physical and emotional symptoms found in the uploaded text.\n\n"
+"CRITICAL DIRECTIONS:\n"
+"1. Match the user's specific symptom variations to the remedy profiles inside the context.\n"
+"2. Avoid generic summaries. Explicitly name 3-4 distinct remedies from the text and point out "
+"exactly what makes each remedy relevant.\n"
+"3. Always ask the client 2 to 3 clear, specific questions to narrow down the correct remedy profile.\n\n"
+"Retrieved Homeopathic Context:\n{context}"
+                    )
+                    
