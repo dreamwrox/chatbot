@@ -1,6 +1,6 @@
 # Import necessary libraries
 import os
-from langchain_community.vectorstores import FAISS
+from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain.chains.conversational_retrieval.base import ConversationalRetrievalChain
 from flask import Flask, render_template, request, redirect
