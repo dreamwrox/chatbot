@@ -13,7 +13,7 @@ from langchain_core.output_parsers import StrOutputParser
 st.set_page_config(page_title="Pro AI Homeopathic Assistant", layout="centered")
 
 # 🔒 PRIVACY OPTIMIZATION: Hides Streamlit's branding, footer, and GitHub repository links
-ABSOLUTE ULTIMATE PRIVACY BLOCK: Erases platform badges, avatars, and overlays
+#ABSOLUTE ULTIMATE PRIVACY BLOCK: Erases platform badges, avatars, and overlays
 st.markdown("""
     <style>
         /* Hides the global system toolbar header container layout */
