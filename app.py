@@ -5,7 +5,7 @@ import qrcode
 from io import BytesIO
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
+from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.chat_message_histories import StreamlitChatMessageHistory
@@ -13,7 +13,7 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 
 # 📁 GLOBAL CONFIGURATION VARIABLES
-DB_DIR = "chroma_db_cache"
+PERSIST_FILE = "vector_store_cache.json"
 ADMIN_PASSWORD = "harjit123"
 FREE_MESSAGE_LIMIT = 3
 
@@ -59,16 +59,16 @@ if "has_paid" not in st.session_state:
     st.session_state.has_paid = False
 
 # -------------------------------------------------------------
-# ARCHITECTURE OPTIMIZATION: CHROMADB PERSISTENT FILE LOADING
+# ARCHITECTURE OPTIMIZATION: NATIVE FILE CACHING
 # -------------------------------------------------------------
 def get_vector_store():
     if not os.environ.get("OPENAI_API_KEY"):
         return None
     embeddings = OpenAIEmbeddings()
-    # Check if the persistent Chroma database folder exists and is populated
-    if os.path.exists(DB_DIR) and len(os.listdir(DB_DIR)) > 0:
+    # Check if the persistent JSON file cache exists on the server disk
+    if os.path.exists(PERSIST_FILE) and os.path.getsize(PERSIST_FILE) > 0:
         try:
-            return Chroma(persist_directory=DB_DIR, embedding_function=embeddings)
+            return InMemoryVectorStore.load(PERSIST_FILE, embeddings)
         except Exception:
             return None
     return None
@@ -78,7 +78,7 @@ if "vector_store" not in st.session_state or st.session_state.vector_store is No
     st.session_state.vector_store = get_vector_store()
 
 # -------------------------------------------------------------
-# 1. ADMIN SIDEBAR CONTROL PANEL (Optimized for Heavy 38MB PDFs)
+# 1. ADMIN SIDEBAR CONTROL PANEL (Safely processes large 38MB files)
 # -------------------------------------------------------------
 with st.sidebar:
     st.header("Admin Settings")
@@ -104,7 +104,7 @@ with st.sidebar:
             progress_text.text(f"2/4 ✂️ Segmenting text elements...")
             progress_bar.progress(40)
             
-            # Larger chunk constraints optimized to minimize processing iterations
+            # Optimized to minimize processing loops
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=100, length_function=len)
             optimized_docs = text_splitter.split_documents(raw_documents)
             
@@ -112,25 +112,25 @@ with st.sidebar:
             progress_bar.progress(70)
             
             embeddings = OpenAIEmbeddings()
+            new_store = InMemoryVectorStore.from_documents(optimized_docs, embeddings)
             
-            # Wiping any old corrupted cache folders safely
-            if os.path.exists(DB_DIR):
-                shutil.rmtree(DB_DIR)
-                
-            # Saving incrementally to disk folder directly via Chroma
-            db = Chroma.from_documents(optimized_docs, embeddings, persist_directory=DB_DIR)
-            
-            progress_text.text("4/4 💾 Finishing disk serialization operations...")
+            progress_text.text("4/4 💾 Saving database serialization index...")
             progress_bar.progress(90)
             
-            st.session_state.vector_store = db
-            os.remove("temp.pdf")
+            # Cleanup any legacy folders
+            if os.path.exists("vector_store_cache") and os.path.isdir("vector_store_cache"):
+                shutil.rmtree("vector_store_cache")
             
+            # Save the new pure JSON file
+            new_store.dump(PERSIST_FILE)
+            st.session_state.vector_store = new_store
+            
+            os.remove("temp.pdf")
             progress_text.text("✅ Completed successfully!")
             progress_bar.progress(100)
             st.success("Knowledge base updated successfully!")
             
-            # Manual interface override action to guarantee rendering updates
+            # Manual switch to unlock interface updates cleanly
             if st.button("Launch Chat Interface 🚀"):
                 st.rerun()
             
@@ -209,6 +209,6 @@ else:
                     
                     system_prompt = (
                         "You are an expert Homeopathic Assistant. Your objective is to help the user identify potential "
-                        "remedies based strictly on the specific physical and emotional symptoms found in the uploaded text.\n\n"
+                        "remedies based strictly on the specific physical and emotional symptoms found in the uploaded text.\n\n")
                         "CRITICAL DIRECTIONS:\n"
-                        "1. Match the user's specific symptom variations to the remedy profiles inside the context.\n")
+                        "1. Match the user's specific symptom variations to the remedy profiles inside the context.\n"
