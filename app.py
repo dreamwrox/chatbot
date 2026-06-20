@@ -139,7 +139,7 @@ else:
             </div>
             <br>
             """, 
-            unsafe_allowed_html=True
+            unsafe_allow_html=True
         )
         
         if st.button("Simulate Successful Payment (For Developer Testing)"):
