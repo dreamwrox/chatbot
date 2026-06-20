@@ -2,7 +2,9 @@
 import os
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
-from langchain.chains.conversational_retrieval.base import ConversationalRetrievalChain
+from langchain_classic.chains import create_retrieval_chain
+from langchain_classic.chains.combine_documents import create_stuff_documents_chain
+
 from flask import Flask, render_template, request, redirect
 from PyPDF2 import PdfReader
 #Please install PdfReader
