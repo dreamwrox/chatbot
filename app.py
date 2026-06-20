@@ -5,7 +5,7 @@ import qrcode
 from io import BytesIO
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_core.vectorstores import InMemoryVectorStore
+from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.chat_message_histories import StreamlitChatMessageHistory
@@ -13,7 +13,7 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 
 # 📁 GLOBAL CONFIGURATION VARIABLES
-PERSIST_FILE = "vector_store_cache.json"
+DB_DIR = "chroma_db_cache"
 ADMIN_PASSWORD = "harjit123"
 FREE_MESSAGE_LIMIT = 3
 
@@ -35,39 +35,19 @@ else:
 st.set_page_config(page_title="Pro AI Homeopathic Assistant", layout="centered")
 
 # 🔒 MAXIMUM PRIVACY LAYOUT RESET
-# 🔒 FIXED MAXIMUM PRIVACY LAYOUT: Hides branding but PRESERVES the sidebar arrow control
 st.markdown("""
     <style>
-        /* Hides default hamburger menu and footer elements cleanly */
         #MainMenu, [data-testid="stMainMenu"] {visibility: hidden !important; display: none !important;}
         footer, [data-testid="stFooter"] {visibility: hidden !important; display: none !important;}
-        
-        /* Hides user profile tracking avatars and dev decorations */
         [data-testid*="avatar"], div[class*="StyledDecoration"], .viewerBadge, [class*="viewerBadge"] {
-            visibility: hidden !important;
-            display: none !important;
+            visibility: hidden !important; display: none !important;
         }
-        
-        /* Hides the desktop 'Manage app' drawer button layout for viewers */
-        div[style*="position: fixed; right:"], div[style*="bottom: 0px; right: 0px;"] {
-            visibility: hidden !important;
-            display: none !important;
-        }
-        
-        /* Keeps header visibility but hides its transparent background colors */
-        header, [data-testid="stHeader"] {
-            background-color: transparent !important;
-        }
-        
-        /* Ensures the sidebar expander button control is explicitly visible and clickable */
+        header, [data-testid="stHeader"] { background-color: transparent !important; }
         [data-testid="collapsedControl"] {
-            visibility: visible !important;
-            display: block !important;
-            z-index: 999999 !important;
+            visibility: visible !important; display: block !important; z-index: 999999 !important;
         }
     </style>
 """, unsafe_allow_html=True)
-
 
 st.title("🌿 Optimized Homeopathic AI Chatbot")
 
@@ -79,25 +59,26 @@ if "has_paid" not in st.session_state:
     st.session_state.has_paid = False
 
 # -------------------------------------------------------------
-# ARCHITECTURE OPTIMIZATION: PERMANENT FILE CACHING
+# ARCHITECTURE OPTIMIZATION: CHROMADB PERSISTENT FILE LOADING
 # -------------------------------------------------------------
-@st.cache_resource(show_spinner=False)
-def load_cached_vector_store():
+def get_vector_store():
     if not os.environ.get("OPENAI_API_KEY"):
         return None
     embeddings = OpenAIEmbeddings()
-    if os.path.exists(PERSIST_FILE) and os.path.getsize(PERSIST_FILE) > 0:
+    # Check if the persistent Chroma database folder exists and is populated
+    if os.path.exists(DB_DIR) and len(os.listdir(DB_DIR)) > 0:
         try:
-            return InMemoryVectorStore.load(PERSIST_FILE, embeddings)
+            return Chroma(persist_directory=DB_DIR, embedding_function=embeddings)
         except Exception:
             return None
     return None
 
+# Load persistent store state
 if "vector_store" not in st.session_state or st.session_state.vector_store is None:
-    st.session_state.vector_store = load_cached_vector_store()
+    st.session_state.vector_store = get_vector_store()
 
 # -------------------------------------------------------------
-# 1. ADMIN SIDEBAR CONTROL PANEL
+# 1. ADMIN SIDEBAR CONTROL PANEL (Optimized for Heavy 38MB PDFs)
 # -------------------------------------------------------------
 with st.sidebar:
     st.header("Admin Settings")
@@ -114,38 +95,44 @@ with st.sidebar:
             with open("temp.pdf", "wb") as f:
                 f.write(uploaded_file.getbuffer())
             
-            progress_text.text("1/4 📖 Reading PDF pages...")
+            progress_text.text("1/4 📖 Reading large PDF book pages...")
             progress_bar.progress(15)
             
             loader = PyPDFLoader("temp.pdf")
             raw_documents = loader.load()
             
-            progress_text.text(f"2/4 ✂️ Splitting {len(raw_documents)} pages into text chunks...")
+            progress_text.text(f"2/4 ✂️ Segmenting text elements...")
             progress_bar.progress(40)
             
-            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=50, length_function=len)
+            # Larger chunk constraints optimized to minimize processing iterations
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=100, length_function=len)
             optimized_docs = text_splitter.split_documents(raw_documents)
             
-            progress_text.text(f"3/4 🧠 Generating AI vectors...")
+            progress_text.text(f"3/4 🧠 Compiling AI structural vector spaces...")
             progress_bar.progress(70)
             
             embeddings = OpenAIEmbeddings()
-            new_store = InMemoryVectorStore.from_documents(optimized_docs, embeddings)
             
-            progress_text.text("4/4 💾 Saving database serialization index...")
+            # Wiping any old corrupted cache folders safely
+            if os.path.exists(DB_DIR):
+                shutil.rmtree(DB_DIR)
+                
+            # Saving incrementally to disk folder directly via Chroma
+            db = Chroma.from_documents(optimized_docs, embeddings, persist_directory=DB_DIR)
+            
+            progress_text.text("4/4 💾 Finishing disk serialization operations...")
             progress_bar.progress(90)
             
-            if os.path.exists("vector_store_cache") and os.path.isdir("vector_store_cache"):
-                shutil.rmtree("vector_store_cache")
-            
-            new_store.dump(PERSIST_FILE)
-            st.session_state.vector_store = new_store
-            
+            st.session_state.vector_store = db
             os.remove("temp.pdf")
+            
             progress_text.text("✅ Completed successfully!")
             progress_bar.progress(100)
             st.success("Knowledge base updated successfully!")
-            st.rerun()
+            
+            # Manual interface override action to guarantee rendering updates
+            if st.button("Launch Chat Interface 🚀"):
+                st.rerun()
             
     elif password:
         st.error("Incorrect password.")
@@ -154,13 +141,12 @@ with st.sidebar:
 # 2. CLIENT INTERFACE WITH PAYWALL LOGIC & CONVERSATIONAL MEMORY
 # -------------------------------------------------------------
 if st.session_state.vector_store is None:
-    st.info("The chatbot is currently offline. Please log into Admin settings to initialize the data and upload your PDF book.")
+    st.info("The chatbot is currently offline. Please log into Admin settings inside the left sidebar to initialize the data and upload your PDF book.")
 else:
     msgs = StreamlitChatMessageHistory(key="chat_messages")
     if len(msgs.messages) == 0:
         msgs.add_ai_message("Hello! Describe your exact symptoms clearly to discover tailored remedy matches.")
 
-    # Always render the chat layout on page refresh
     for msg in msgs.messages:
         st.chat_message(msg.type).write(msg.content)
 
@@ -211,7 +197,6 @@ else:
                     st.error("Please enter a valid 12-digit numeric transaction UTR tracking code.")
     else:
         if user_query := st.chat_input("Type your specific symptoms here..."):
-            # Update history states
             st.chat_message("user").write(user_query)
             msgs.add_user_message(user_query)
             st.session_state.user_message_count += 1
@@ -219,7 +204,7 @@ else:
             with st.chat_message("assistant"):
                 with st.spinner("Analyzing data profiles..."):
                     
-                    retriever = st.session_state.vector_store.as_retriever(search_kwargs={"k": 6})
+                    retriever = st.session_state.vector_store.as_retriever(search_kwargs={"k": 5})
                     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.1)
                     
                     system_prompt = (
@@ -227,8 +212,3 @@ else:
                         "remedies based strictly on the specific physical and emotional symptoms found in the uploaded text.\n\n"
                         "CRITICAL DIRECTIONS:\n"
                         "1. Match the user's specific symptom variations to the remedy profiles inside the context.\n"
-                        "2. Avoid generic summaries. Explicitly name 3-4 distinct remedies from the text and point out "
-                        "exactly what makes each remedy relevant (modalities, specific pain types, triggers).\n"
-                        "3. Always ask the client 2 to 3 clear, specific questions to narrow down the correct remedy profile.\n\n"
-                        "Retrieved Homeopathic Context:\n{context}"
-                    )
