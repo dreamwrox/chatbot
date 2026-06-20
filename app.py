@@ -23,19 +23,18 @@ MERCHANT_NAME = "Harjit Homeopathy"
 PREMIUM_PRICE_INR = "199"            
 APP_URL = "https://streamlit.app"
 
-# 🔑 SECURE OPENAI KEY INJECTION FOR ALL PLATFORMS (Hugging Face / Streamlit Cloud)
+# 🔑 SECURE OPENAI KEY INJECTION FOR ALL PLATFORMS
 if "OPENAI_API_KEY" in os.environ:
     pass
 elif "OPENAI_API_KEY" in st.secrets:
     os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
 else:
-    # Fallback to direct string verification if dashboard forms aren't populated yet
     os.environ["OPENAI_API_KEY"] = st.sidebar.text_input("API Key Verification Missing. Enter OpenAI Key:", type="password")
 
 # Initialize page configuration exactly once
 st.set_page_config(page_title="Pro AI Homeopathic Assistant", layout="centered")
 
-# 🔒 MAXIMUM PRIVACY LAYOUT RESET (Hides header anchors, tracking buttons, and branding)
+# 🔒 MAXIMUM PRIVACY LAYOUT RESET
 st.markdown("""
     <style>
         header, [data-testid="stHeader"] {visibility: hidden !important; display: none !important;}
@@ -60,11 +59,9 @@ if "has_paid" not in st.session_state:
 # -------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
 def load_cached_vector_store():
-    """Loads vector index from disk if it exists, keeping data alive across reboots."""
     if not os.environ.get("OPENAI_API_KEY"):
         return None
     embeddings = OpenAIEmbeddings()
-    # Check if the specific JSON file cache exists on the server disk
     if os.path.exists(PERSIST_FILE) and os.path.getsize(PERSIST_FILE) > 0:
         try:
             return InMemoryVectorStore.load(PERSIST_FILE, embeddings)
@@ -72,12 +69,11 @@ def load_cached_vector_store():
             return None
     return None
 
-# Load persistent store on app start
 if "vector_store" not in st.session_state:
     st.session_state.vector_store = load_cached_vector_store()
 
 # -------------------------------------------------------------
-# 1. ADMIN SIDEBAR CONTROL PANEL (Builds database automatically)
+# 1. ADMIN SIDEBAR CONTROL PANEL
 # -------------------------------------------------------------
 with st.sidebar:
     st.header("Admin Settings")
@@ -140,21 +136,17 @@ else:
     if len(msgs.messages) == 0:
         msgs.add_ai_message("Hello! Describe your exact symptoms clearly to discover tailored remedy matches.")
 
-    # Render complete chat history
     for msg in msgs.messages:
         st.chat_message(msg.type).write(msg.content)
 
-    # Calculate payment gate condition state
     reached_limit = st.session_state.user_message_count >= FREE_MESSAGE_LIMIT and not st.session_state.has_paid
 
     if reached_limit:
         st.warning(f"⚠️ You have reached your limit of {FREE_MESSAGE_LIMIT} free messages.")
         
-        # 🔗 CONSTRUCT DEEP-LINK INTENT URI STRING
         clean_name = MERCHANT_NAME.replace(" ", "%20")
         upi_string = f"upi://pay?pa={YOUR_UPI_ID}&pn={clean_name}&am={PREMIUM_PRICE_INR}&cu=INR"
         
-        # Draw payment QR code vector image asset
         qr = qrcode.QRCode(version=1, box_size=10, border=2)
         qr.add_data(upi_string)
         qr.make(fit=True)
@@ -208,3 +200,11 @@ else:
                         "remedies based strictly on the specific physical and emotional symptoms found in the uploaded text.\n\n"
                         "CRITICAL DIRECTIONS:\n"
                         "1. Match the user's specific symptom variations to the remedy profiles inside the context.\n"
+                        "2. Avoid generic summaries. Explicitly name 3-4 distinct remedies from the text and point out "
+                        "exactly what makes each remedy relevant (modalities, specific pain types, triggers).\n"
+                        "3. Always ask the client 2 to 3 clear, specific questions to narrow down the correct remedy profile.\n\n"
+                        "Retrieved Homeopathic Context:\n{context}"
+                    )
+                    
+                    prompt = ChatPromptTemplate.from_messages([
+                        ("system", system_prompt),
