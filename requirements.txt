@@ -2,5 +2,6 @@ streamlit
 langchain-core
 langchain-community
 langchain-openai
+openai
 pypdf
-qrcode
+qrcode[pil]
