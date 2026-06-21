@@ -22,7 +22,13 @@ FREE_MESSAGE_LIMIT = 3
 # UPI payment details
 YOUR_UPI_ID = "harjeet.pahwa@oksbi"
 MERCHANT_NAME = "Harjit Homeopathy"
-PREMIUM_PRICE_INR = "199"
+PREMIUM_PRICE_INR = "99"      # launch offer (regular 199)
+
+# Unlock code: give this ONLY to customers who have actually paid.
+# Change it anytime (e.g. monthly) to keep it private.
+UNLOCK_CODE = "HARJIT99"
+# Your WhatsApp number for customers to send their payment screenshot.
+WHATSAPP_NUMBER = "8800138095"   # <-- replace with your number, keep 91 prefix
 
 # =========================================================
 # OPENAI KEY
@@ -227,8 +233,9 @@ else:
             <div style="background:#f8fafc; padding:22px; border-radius:14px;
                         border:2px solid #e2e8f0; text-align:center; margin-bottom:16px;">
                 <h3 style="color:#0f766e; margin-bottom:4px;">Unlock Unlimited Consultations 💎</h3>
-                <p style="color:#475569; font-size:15px;">One-time fee of
-                   <b>₹{PREMIUM_PRICE_INR}</b> for unrestricted access.</p>
+                <p style="color:#475569; font-size:15px;">Launch offer:
+                   <span style="text-decoration:line-through; color:#94a3b8;">₹199</span>
+                   <b style="color:#0f766e;">₹{PREMIUM_PRICE_INR}</b> — one-time, for unrestricted access.</p>
                 <a href="{upi_link}" style="background:#10b981; color:white; padding:12px 24px;
                    text-decoration:none; border-radius:8px; font-weight:bold; display:inline-block;">
                    Pay via Google Pay / PhonePe / UPI</a>
@@ -240,14 +247,26 @@ else:
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             st.image(qr_bytes, caption="Scan with any UPI app to pay", use_container_width=True)
-            utr = st.text_input("Enter your 12-digit UPI Ref / UTR No. after paying", max_chars=12)
-            if st.button("Verify Transfer & Unlock"):
-                if len(utr) == 12 and utr.isdigit():
+
+            st.markdown(
+                f"""
+                <div style="text-align:center; color:#475569; font-size:14px; margin:8px 0 14px 0;">
+                    After paying <b>₹{PREMIUM_PRICE_INR}</b>, send your payment screenshot on
+                    WhatsApp to <b>{WHATSAPP_NUMBER}</b> and you'll receive your
+                    <b>unlock code</b>. Enter it below to get unlimited access.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            code = st.text_input("Enter your unlock code", type="password")
+            if st.button("Unlock Access"):
+                if code.strip().upper() == UNLOCK_CODE.upper():
                     st.session_state.has_paid = True
-                    st.success("Premium access unlocked!")
+                    st.success("Premium access unlocked! Enjoy unlimited consultations.")
                     st.rerun()
                 else:
-                    st.error("Please enter a valid 12-digit numeric UTR.")
+                    st.error("Incorrect code. Please check the code sent to you after payment.")
     else:
         if user_query := st.chat_input("Type your symptoms or question..."):
             st.chat_message("user").write(user_query)
