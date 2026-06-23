@@ -300,24 +300,16 @@ else:
             "English": "en-IN",
         }[lang_choice]
 
-        # Combined input: text box + mic (auto-fills the box) + Send button.
-        # The component returns the text to Streamlit when Send is pressed.
-        spoken = components.html(
+        # Voice mic: writes the recognised words into the real Streamlit text box
+        # below (found by its placeholder), so Send always works reliably.
+        components.html(
             f"""
             <div style="font-family: sans-serif;">
-              <textarea id="box" rows="3" style="width:100%;padding:10px;border-radius:8px;
-                  border:1px solid #cbd5e1;font-size:15px;box-sizing:border-box;"
-                  placeholder="Type your symptoms, or tap the mic to speak…"></textarea>
-              <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                <button id="micBtn" style="background:#16a34a;color:white;border:none;
-                    padding:10px 18px;border-radius:10px;font-size:15px;cursor:pointer;
-                    display:inline-flex;align-items:center;gap:8px;">
-                    <span id="micIcon">🎤</span><span id="micLabel">Speak</span></button>
-                <button id="sendBtn" style="background:#2563eb;color:white;border:none;
-                    padding:10px 22px;border-radius:10px;font-size:15px;cursor:pointer;">
-                    Send ➤</button>
-                <span id="status" style="color:#475569;font-size:14px;"></span>
-              </div>
+              <button id="micBtn" style="background:#16a34a;color:white;border:none;
+                  padding:10px 18px;border-radius:10px;font-size:15px;cursor:pointer;
+                  display:inline-flex;align-items:center;gap:8px;">
+                  <span id="micIcon">🎤</span><span id="micLabel">Speak</span></button>
+              <span id="status" style="margin-left:10px;color:#475569;font-size:14px;"></span>
             </div>
             <style>
               @keyframes pulse {{ 0%{{transform:scale(1);}} 50%{{transform:scale(1.15);}} 100%{{transform:scale(1);}} }}
@@ -325,30 +317,34 @@ else:
               .listening #micIcon {{ display:inline-block; animation:pulse 1s infinite; }}
             </style>
             <script>
-              const box = document.getElementById('box');
               const micBtn = document.getElementById('micBtn');
-              const sendBtn = document.getElementById('sendBtn');
               const status = document.getElementById('status');
               const label = document.getElementById('micLabel');
               const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-              function send() {{
-                const text = box.value.trim();
-                if (!text) {{ status.textContent = "Please type or speak something first."; return; }}
-                // Send the text back to Streamlit
-                window.parent.postMessage(
-                  {{ isStreamlitMessage: true, type: "streamlit:setComponentValue", value: text }}, "*"
-                );
-                box.value = "";
-                status.textContent = "Sent ✓";
+              // Find the Streamlit textarea in the parent page by its placeholder
+              function findBox() {{
+                const docs = [document];
+                try {{ docs.push(window.parent.document); }} catch (e) {{}}
+                for (const d of docs) {{
+                  const els = d.querySelectorAll('textarea');
+                  for (const el of els) {{
+                    if (el.placeholder && el.placeholder.indexOf('symptoms') !== -1) return el;
+                  }}
+                }}
+                return null;
               }}
-              sendBtn.onclick = send;
-              box.addEventListener('keydown', (e) => {{
-                if (e.key === 'Enter' && !e.shiftKey) {{ e.preventDefault(); send(); }}
-              }});
+              function setBox(text) {{
+                const box = findBox();
+                if (!box) return;
+                const setter = Object.getOwnPropertyDescriptor(
+                  window.HTMLTextAreaElement.prototype, 'value').set;
+                setter.call(box, text);
+                box.dispatchEvent(new Event('input', {{ bubbles: true }}));
+              }}
 
               if (!SR) {{
-                micBtn.style.display = "none";  // graceful: typing still works everywhere
+                micBtn.style.display = "none";  // typing still works everywhere
               }} else {{
                 const rec = new SR();
                 rec.lang = "{lang_code}";
@@ -358,7 +354,8 @@ else:
                 let listening = false;
                 micBtn.onclick = () => {{
                   if (listening) {{ rec.stop(); return; }}
-                  base = box.value ? box.value + " " : "";
+                  const box = findBox();
+                  base = (box && box.value) ? box.value + " " : "";
                   status.textContent = "Listening… speak now";
                   micBtn.classList.add("listening");
                   label.textContent = "Stop";
@@ -371,7 +368,7 @@ else:
                     if (e.results[i].isFinal) finalT += e.results[i][0].transcript + " ";
                     else interim += e.results[i][0].transcript;
                   }}
-                  box.value = (base + finalT + interim).trim();  // auto-fills the box
+                  setBox((base + finalT + interim).trim());  // fills the real box
                 }};
                 rec.onerror = (e) => {{
                   status.textContent = (e.error === "not-allowed" || e.error === "service-not-allowed")
@@ -382,31 +379,36 @@ else:
                   micBtn.classList.remove("listening");
                   label.textContent = "Speak";
                   listening = false;
-                  if (box.value.trim()) status.textContent = "Ready — tap Send.";
-                  else status.textContent = "";
+                  status.textContent = "Ready — tap Send below.";
                 }};
               }}
             </script>
             """,
-            height=200,
+            height=70,
         )
 
-        # When the component returns text (Send pressed), process it
-        if spoken and isinstance(spoken, str) and spoken.strip():
-            user_query = spoken.strip()
-            # avoid re-processing the same value on rerun
-            if st.session_state.get("last_sent") != user_query:
-                st.session_state.last_sent = user_query
-                st.chat_message("user").write(user_query)
-                st.session_state.messages.append({"role": "user", "content": user_query})
-                st.session_state.user_message_count += 1
+        # Real Streamlit input -- always handled correctly
+        with st.form("ask_form", clear_on_submit=True):
+            user_query = st.text_area(
+                "Message",
+                key="msg_box",
+                placeholder="Type your symptoms here, or use the mic above…",
+                label_visibility="collapsed",
+            )
+            submitted = st.form_submit_button("Send ➤")
 
-                with st.chat_message("assistant"):
-                    with st.spinner("Analyzing..."):
-                        try:
-                            answer = answer_question(st.session_state.vector_store, user_query)
-                        except Exception as e:
-                            answer = f"Error generating answer: {e}"
-                        st.write(answer)
-                        st.session_state.messages.append({"role": "assistant", "content": answer})
-                st.rerun()
+        if submitted and user_query and user_query.strip():
+            q = user_query.strip()
+            st.chat_message("user").write(q)
+            st.session_state.messages.append({"role": "user", "content": q})
+            st.session_state.user_message_count += 1
+
+            with st.chat_message("assistant"):
+                with st.spinner("Analyzing..."):
+                    try:
+                        answer = answer_question(st.session_state.vector_store, q)
+                    except Exception as e:
+                        answer = f"Error generating answer: {e}"
+                    st.write(answer)
+                    st.session_state.messages.append({"role": "assistant", "content": answer})
+            st.rerun()
