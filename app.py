@@ -176,7 +176,7 @@ def answer_question(store, question):
         "entirely in English. If it is written in Gurmukhi script, reply in Punjabi. If it "
         "is written in Devanagari, reply in Hindi. Do NOT switch to another language; for "
         "example never answer an English message in Punjabi. Ignore any language setting "
-        "outside the message itself.\n\n""
+        "outside the message itself.\n\n"
         "Instructions:\n"
         "1. Identify the symptom(s) in the user's message, even if briefly stated.\n"
         "2. Name 3-4 specific remedies from the context and explain what makes each "
