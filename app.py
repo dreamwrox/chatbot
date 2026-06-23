@@ -309,28 +309,54 @@ else:
                 f"""
                 <div style="font-family: sans-serif;">
                   <button id="micBtn" style="background:#16a34a;color:white;border:none;
-                      padding:10px 18px;border-radius:8px;font-size:15px;cursor:pointer;">
-                      🎤 Start speaking</button>
-                  <span id="status" style="margin-left:10px;color:#475569;"></span>
-                  <textarea id="out" rows="3" style="width:100%;margin-top:10px;
-                      padding:8px;border-radius:8px;border:1px solid #cbd5e1;font-size:15px;"
-                      placeholder="Your spoken words appear here..."></textarea>
+                      padding:12px 20px;border-radius:10px;font-size:16px;cursor:pointer;
+                      display:inline-flex;align-items:center;gap:8px;transition:all .2s;">
+                      <span id="micIcon">🎤</span><span id="micLabel">Start speaking</span></button>
+                  <span id="status" style="margin-left:12px;color:#475569;font-size:14px;"></span>
+                  <textarea id="out" rows="3" style="width:100%;margin-top:12px;
+                      padding:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:15px;
+                      box-sizing:border-box;"
+                      placeholder="Your spoken words appear here — then copy them into the message box below."></textarea>
+                  <div id="unsupported" style="display:none;margin-top:8px;color:#475569;
+                      font-size:14px;background:#f1f5f9;padding:10px;border-radius:8px;">
+                      Voice typing isn't available in this browser. No problem — just type your
+                      symptoms in the message box below as usual.
+                  </div>
                 </div>
+                <style>
+                  @keyframes pulse {{ 0%{{transform:scale(1);}} 50%{{transform:scale(1.15);}} 100%{{transform:scale(1);}} }}
+                  .listening {{ background:#dc2626 !important; }}
+                  .listening #micIcon {{ display:inline-block; animation:pulse 1s infinite; }}
+                </style>
                 <script>
                   const btn = document.getElementById('micBtn');
                   const out = document.getElementById('out');
                   const status = document.getElementById('status');
+                  const label = document.getElementById('micLabel');
+                  const unsupported = document.getElementById('unsupported');
                   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
                   if (!SR) {{
-                    status.textContent = "Voice not supported in this browser. Please use Chrome.";
-                    btn.disabled = true;
+                    // Graceful: hide the voice UI entirely, show a friendly note
+                    btn.style.display = "none";
+                    out.style.display = "none";
+                    status.style.display = "none";
+                    unsupported.style.display = "block";
                   }} else {{
                     const rec = new SR();
                     rec.lang = "{lang_code}";
                     rec.continuous = false;
                     rec.interimResults = true;
                     let finalText = "";
-                    btn.onclick = () => {{ finalText = out.value; status.textContent = "Listening..."; rec.start(); }};
+                    let listening = false;
+                    btn.onclick = () => {{
+                      if (listening) {{ rec.stop(); return; }}
+                      finalText = out.value ? out.value + " " : "";
+                      status.textContent = "Listening… speak now";
+                      btn.classList.add("listening");
+                      label.textContent = "Stop";
+                      listening = true;
+                      rec.start();
+                    }};
                     rec.onresult = (e) => {{
                       let interim = "";
                       for (let i = e.resultIndex; i < e.results.length; i++) {{
@@ -339,12 +365,24 @@ else:
                       }}
                       out.value = (finalText + interim).trim();
                     }};
-                    rec.onerror = (e) => {{ status.textContent = "Error: " + e.error + " (try Chrome / allow mic)"; }};
-                    rec.onend = () => {{ status.textContent = "Done. Copy the text into the message box below."; }};
+                    rec.onerror = (e) => {{
+                      if (e.error === "not-allowed" || e.error === "service-not-allowed") {{
+                        status.textContent = "Please allow microphone access in your browser, then try again.";
+                      }} else {{
+                        status.textContent = "Couldn't hear that — please try again.";
+                      }}
+                    }};
+                    rec.onend = () => {{
+                      btn.classList.remove("listening");
+                      label.textContent = "Start speaking";
+                      listening = false;
+                      if (out.value.trim()) status.textContent = "Done ✓ Copy the text into the message box below.";
+                      else status.textContent = "";
+                    }};
                   }}
                 </script>
                 """,
-                height=200,
+                height=230,
             )
 
         if user_query := st.chat_input("Type your symptoms / ਆਪਣੇ ਲੱਛਣ ਲਿਖੋ..."):
