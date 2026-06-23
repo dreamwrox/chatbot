@@ -169,7 +169,6 @@ def answer_question(store, question):
     system_prompt = (
         "You are an expert Homeopathic Assistant. Use the retrieved context from the "
         "uploaded book to help the user find remedies for their symptoms.\n\n"
-      
         "LANGUAGE (very important):\n"
         "Look ONLY at the script and words of the user's latest message and reply in "
         "that exact language. If the message is written in English (Latin letters), reply "
@@ -383,7 +382,25 @@ else:
                   micBtn.classList.remove("listening");
                   label.textContent = "Speak";
                   listening = false;
-                  status.textContent = "Ready — tap Send below.";
+                  // Auto-submit: find and click the Send button so the user
+                  // doesn't have to tap anything after speaking.
+                  const box = findBox();
+                  if (box && box.value.trim()) {{
+                    status.textContent = "Sending…";
+                    let btn = null;
+                    const docs = [document];
+                    try {{ docs.push(window.parent.document); }} catch (e) {{}}
+                    for (const d of docs) {{
+                      for (const b of d.querySelectorAll('button')) {{
+                        if (b.innerText && b.innerText.indexOf('Send') !== -1) {{ btn = b; break; }}
+                      }}
+                      if (btn) break;
+                    }}
+                    if (btn) setTimeout(() => btn.click(), 400);
+                    else status.textContent = "Ready — tap Send below.";
+                  }} else {{
+                    status.textContent = "";
+                  }}
                 }};
               }}
             </script>
