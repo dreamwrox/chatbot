@@ -286,116 +286,127 @@ else:
                 else:
                     st.error("Incorrect code. Please check the code sent to you after payment.")
     else:
-        # ---- Voice input (works best in Google Chrome) ----
         import streamlit.components.v1 as components
-        with st.expander("🎤 Voice input (ਅਵਾਜ਼ ਨਾਲ ਬੋਲੋ) — works best in Chrome"):
-            st.caption(
-                "Tap the mic, allow microphone access, and speak. The recognised "
-                "words appear in the box — copy them into the message box below. "
-                "ਮਾਈਕ ਦਬਾਓ ਅਤੇ ਬੋਲੋ।"
-            )
-            lang_choice = st.radio(
-                "Speaking language / ਬੋਲਣ ਦੀ ਭਾਸ਼ਾ",
-                ["Punjabi (ਪੰਜਾਬੀ)", "Hindi (हिंदी)", "English"],
-                horizontal=True,
-            )
-            lang_code = {
-                "Punjabi (ਪੰਜਾਬੀ)": "pa-IN",
-                "Hindi (हिंदी)": "hi-IN",
-                "English": "en-IN",
-            }[lang_choice]
 
-            components.html(
-                f"""
-                <div style="font-family: sans-serif;">
-                  <button id="micBtn" style="background:#16a34a;color:white;border:none;
-                      padding:12px 20px;border-radius:10px;font-size:16px;cursor:pointer;
-                      display:inline-flex;align-items:center;gap:8px;transition:all .2s;">
-                      <span id="micIcon">🎤</span><span id="micLabel">Start speaking</span></button>
-                  <span id="status" style="margin-left:12px;color:#475569;font-size:14px;"></span>
-                  <textarea id="out" rows="3" style="width:100%;margin-top:12px;
-                      padding:10px;border-radius:8px;border:1px solid #cbd5e1;font-size:15px;
-                      box-sizing:border-box;"
-                      placeholder="Your spoken words appear here — then copy them into the message box below."></textarea>
-                  <div id="unsupported" style="display:none;margin-top:8px;color:#475569;
-                      font-size:14px;background:#f1f5f9;padding:10px;border-radius:8px;">
-                      Voice typing isn't available in this browser. No problem — just type your
-                      symptoms in the message box below as usual.
-                  </div>
-                </div>
-                <style>
-                  @keyframes pulse {{ 0%{{transform:scale(1);}} 50%{{transform:scale(1.15);}} 100%{{transform:scale(1);}} }}
-                  .listening {{ background:#dc2626 !important; }}
-                  .listening #micIcon {{ display:inline-block; animation:pulse 1s infinite; }}
-                </style>
-                <script>
-                  const btn = document.getElementById('micBtn');
-                  const out = document.getElementById('out');
-                  const status = document.getElementById('status');
-                  const label = document.getElementById('micLabel');
-                  const unsupported = document.getElementById('unsupported');
-                  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-                  if (!SR) {{
-                    // Graceful: hide the voice UI entirely, show a friendly note
-                    btn.style.display = "none";
-                    out.style.display = "none";
-                    status.style.display = "none";
-                    unsupported.style.display = "block";
-                  }} else {{
-                    const rec = new SR();
-                    rec.lang = "{lang_code}";
-                    rec.continuous = false;
-                    rec.interimResults = true;
-                    let finalText = "";
-                    let listening = false;
-                    btn.onclick = () => {{
-                      if (listening) {{ rec.stop(); return; }}
-                      finalText = out.value ? out.value + " " : "";
-                      status.textContent = "Listening… speak now";
-                      btn.classList.add("listening");
-                      label.textContent = "Stop";
-                      listening = true;
-                      rec.start();
-                    }};
-                    rec.onresult = (e) => {{
-                      let interim = "";
-                      for (let i = e.resultIndex; i < e.results.length; i++) {{
-                        if (e.results[i].isFinal) finalText += e.results[i][0].transcript + " ";
-                        else interim += e.results[i][0].transcript;
-                      }}
-                      out.value = (finalText + interim).trim();
-                    }};
-                    rec.onerror = (e) => {{
-                      if (e.error === "not-allowed" || e.error === "service-not-allowed") {{
-                        status.textContent = "Please allow microphone access in your browser, then try again.";
-                      }} else {{
-                        status.textContent = "Couldn't hear that — please try again.";
-                      }}
-                    }};
-                    rec.onend = () => {{
-                      btn.classList.remove("listening");
-                      label.textContent = "Start speaking";
-                      listening = false;
-                      if (out.value.trim()) status.textContent = "Done ✓ Copy the text into the message box below.";
-                      else status.textContent = "";
-                    }};
+        st.markdown("**Ask your question / ਆਪਣਾ ਸਵਾਲ ਪੁੱਛੋ**")
+        lang_choice = st.radio(
+            "Voice language / ਅਵਾਜ਼ ਦੀ ਭਾਸ਼ਾ",
+            ["Punjabi (ਪੰਜਾਬੀ)", "Hindi (हिंदी)", "English"],
+            horizontal=True,
+        )
+        lang_code = {
+            "Punjabi (ਪੰਜਾਬੀ)": "pa-IN",
+            "Hindi (हिंदी)": "hi-IN",
+            "English": "en-IN",
+        }[lang_choice]
+
+        # Combined input: text box + mic (auto-fills the box) + Send button.
+        # The component returns the text to Streamlit when Send is pressed.
+        spoken = components.html(
+            f"""
+            <div style="font-family: sans-serif;">
+              <textarea id="box" rows="3" style="width:100%;padding:10px;border-radius:8px;
+                  border:1px solid #cbd5e1;font-size:15px;box-sizing:border-box;"
+                  placeholder="Type your symptoms, or tap the mic to speak…"></textarea>
+              <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <button id="micBtn" style="background:#16a34a;color:white;border:none;
+                    padding:10px 18px;border-radius:10px;font-size:15px;cursor:pointer;
+                    display:inline-flex;align-items:center;gap:8px;">
+                    <span id="micIcon">🎤</span><span id="micLabel">Speak</span></button>
+                <button id="sendBtn" style="background:#2563eb;color:white;border:none;
+                    padding:10px 22px;border-radius:10px;font-size:15px;cursor:pointer;">
+                    Send ➤</button>
+                <span id="status" style="color:#475569;font-size:14px;"></span>
+              </div>
+            </div>
+            <style>
+              @keyframes pulse {{ 0%{{transform:scale(1);}} 50%{{transform:scale(1.15);}} 100%{{transform:scale(1);}} }}
+              .listening {{ background:#dc2626 !important; }}
+              .listening #micIcon {{ display:inline-block; animation:pulse 1s infinite; }}
+            </style>
+            <script>
+              const box = document.getElementById('box');
+              const micBtn = document.getElementById('micBtn');
+              const sendBtn = document.getElementById('sendBtn');
+              const status = document.getElementById('status');
+              const label = document.getElementById('micLabel');
+              const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+              function send() {{
+                const text = box.value.trim();
+                if (!text) {{ status.textContent = "Please type or speak something first."; return; }}
+                // Send the text back to Streamlit
+                window.parent.postMessage(
+                  {{ isStreamlitMessage: true, type: "streamlit:setComponentValue", value: text }}, "*"
+                );
+                box.value = "";
+                status.textContent = "Sent ✓";
+              }}
+              sendBtn.onclick = send;
+              box.addEventListener('keydown', (e) => {{
+                if (e.key === 'Enter' && !e.shiftKey) {{ e.preventDefault(); send(); }}
+              }});
+
+              if (!SR) {{
+                micBtn.style.display = "none";  // graceful: typing still works everywhere
+              }} else {{
+                const rec = new SR();
+                rec.lang = "{lang_code}";
+                rec.continuous = false;
+                rec.interimResults = true;
+                let base = "";
+                let listening = false;
+                micBtn.onclick = () => {{
+                  if (listening) {{ rec.stop(); return; }}
+                  base = box.value ? box.value + " " : "";
+                  status.textContent = "Listening… speak now";
+                  micBtn.classList.add("listening");
+                  label.textContent = "Stop";
+                  listening = true;
+                  rec.start();
+                }};
+                rec.onresult = (e) => {{
+                  let finalT = "", interim = "";
+                  for (let i = e.resultIndex; i < e.results.length; i++) {{
+                    if (e.results[i].isFinal) finalT += e.results[i][0].transcript + " ";
+                    else interim += e.results[i][0].transcript;
                   }}
-                </script>
-                """,
-                height=230,
-            )
+                  box.value = (base + finalT + interim).trim();  // auto-fills the box
+                }};
+                rec.onerror = (e) => {{
+                  status.textContent = (e.error === "not-allowed" || e.error === "service-not-allowed")
+                    ? "Please allow microphone access, then try again."
+                    : "Couldn't hear that — please try again.";
+                }};
+                rec.onend = () => {{
+                  micBtn.classList.remove("listening");
+                  label.textContent = "Speak";
+                  listening = false;
+                  if (box.value.trim()) status.textContent = "Ready — tap Send.";
+                  else status.textContent = "";
+                }};
+              }}
+            </script>
+            """,
+            height=200,
+        )
 
-        if user_query := st.chat_input("Type your symptoms / ਆਪਣੇ ਲੱਛਣ ਲਿਖੋ..."):
-            st.chat_message("user").write(user_query)
-            st.session_state.messages.append({"role": "user", "content": user_query})
-            st.session_state.user_message_count += 1
+        # When the component returns text (Send pressed), process it
+        if spoken and isinstance(spoken, str) and spoken.strip():
+            user_query = spoken.strip()
+            # avoid re-processing the same value on rerun
+            if st.session_state.get("last_sent") != user_query:
+                st.session_state.last_sent = user_query
+                st.chat_message("user").write(user_query)
+                st.session_state.messages.append({"role": "user", "content": user_query})
+                st.session_state.user_message_count += 1
 
-            with st.chat_message("assistant"):
-                with st.spinner("Analyzing..."):
-                    try:
-                        answer = answer_question(st.session_state.vector_store, user_query)
-                    except Exception as e:
-                        answer = f"Error generating answer: {e}"
-                    st.write(answer)
-                    st.session_state.messages.append({"role": "assistant", "content": answer})
-            st.rerun()
+                with st.chat_message("assistant"):
+                    with st.spinner("Analyzing..."):
+                        try:
+                            answer = answer_question(st.session_state.vector_store, user_query)
+                        except Exception as e:
+                            answer = f"Error generating answer: {e}"
+                        st.write(answer)
+                        st.session_state.messages.append({"role": "assistant", "content": answer})
+                st.rerun()
