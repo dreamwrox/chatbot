@@ -294,12 +294,16 @@ else:
         st.markdown("**Ask your question / ਆਪਣਾ ਸਵਾਲ ਪੁੱਛੋ**")
         lang_choice = st.radio(
             "Voice language / ਅਵਾਜ਼ ਦੀ ਭਾਸ਼ਾ",
-            ["Punjabi (ਪੰਜਾਬੀ)", "Hindi (हिंदी)", "English"],
+            ["Punjabi (ਪੰਜਾਬੀ)", "Hindi (हिंदी)", "Tamil (தமிழ்)",
+             "Bengali (বাংলা)", "Kannada (ಕನ್ನಡ)", "English"],
             horizontal=True,
         )
         lang_code = {
             "Punjabi (ਪੰਜਾਬੀ)": "pa-IN",
             "Hindi (हिंदी)": "hi-IN",
+            "Tamil (தமிழ்)": "ta-IN",
+            "Bengali (বাংলা)": "bn-IN",
+            "Kannada (ಕನ್ನಡ)": "kn-IN",
             "English": "en-IN",
         }[lang_choice]
 
