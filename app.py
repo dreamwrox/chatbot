@@ -24,9 +24,19 @@ YOUR_UPI_ID = "harjeet.pahwa@oksbi"
 MERCHANT_NAME = "Harjit Homeopathy"
 PREMIUM_PRICE_INR = "99"      # launch offer (regular 199)
 
-# Unlock code: give this ONLY to customers who have actually paid.
-# Change it anytime (e.g. monthly) to keep it private.
-UNLOCK_CODE = "HARJIT99"
+# ---------------------------------------------------------
+# PAID CUSTOMER UNLOCK CODES
+# ---------------------------------------------------------
+# Give each paying customer their OWN code. When someone pays,
+# add a new line below with their code. They reuse it every visit.
+# Tip: include their name so you remember who's who.
+# Codes are matched case-insensitively.
+UNLOCK_CODES = [
+    "HARJIT-DEMO-2026",     # example / your own test code
+    # "HARJIT-RAVI-2026",   # <- add a new line like this for each paid customer
+    # "HARJIT-PRIYA-2026",
+]
+
 # Your WhatsApp number for customers to send their payment screenshot.
 WHATSAPP_NUMBER = "8800138095"   # <-- replace with your number, keep 91 prefix
 
@@ -159,12 +169,19 @@ def answer_question(store, question):
     system_prompt = (
         "You are an expert Homeopathic Assistant. Use the retrieved context from the "
         "uploaded book to help the user find remedies for their symptoms.\n\n"
+        "LANGUAGE:\n"
+        "Detect the language the user wrote in (for example English, Punjabi/Gurmukhi, "
+        "or Hindi) and write your ENTIRE reply in that same language. If the user writes "
+        "in Punjabi, reply in Punjabi using Gurmukhi script.\n\n"
         "Instructions:\n"
         "1. Identify the symptom(s) in the user's message, even if briefly stated.\n"
         "2. Name 3-4 specific remedies from the context and explain what makes each "
         "relevant (modalities, triggers, specific symptom pictures).\n"
         "3. Ask 2-3 follow-up questions to narrow down the best remedy.\n"
         "If the context truly contains nothing about the symptom, say so.\n\n"
+        "IMPORTANT - always end your reply with a short reminder, written in the SAME "
+        "language as the rest of your reply, that this is general information only and the "
+        "user should also consult a qualified doctor for proper diagnosis and treatment.\n\n"
         "Retrieved Context:\n{context}"
     )
 
@@ -261,14 +278,76 @@ else:
 
             code = st.text_input("Enter your unlock code", type="password")
             if st.button("Unlock Access"):
-                if code.strip().upper() == UNLOCK_CODE.upper():
+                valid_codes = [c.strip().upper() for c in UNLOCK_CODES]
+                if code.strip().upper() in valid_codes:
                     st.session_state.has_paid = True
                     st.success("Premium access unlocked! Enjoy unlimited consultations.")
                     st.rerun()
                 else:
                     st.error("Incorrect code. Please check the code sent to you after payment.")
     else:
-        if user_query := st.chat_input("Type your symptoms or question..."):
+        # ---- Voice input (works best in Google Chrome) ----
+        import streamlit.components.v1 as components
+        with st.expander("🎤 Voice input (ਅਵਾਜ਼ ਨਾਲ ਬੋਲੋ) — works best in Chrome"):
+            st.caption(
+                "Tap the mic, allow microphone access, and speak. The recognised "
+                "words appear in the box — copy them into the message box below. "
+                "ਮਾਈਕ ਦਬਾਓ ਅਤੇ ਬੋਲੋ।"
+            )
+            lang_choice = st.radio(
+                "Speaking language / ਬੋਲਣ ਦੀ ਭਾਸ਼ਾ",
+                ["Punjabi (ਪੰਜਾਬੀ)", "Hindi (हिंदी)", "English"],
+                horizontal=True,
+            )
+            lang_code = {
+                "Punjabi (ਪੰਜਾਬੀ)": "pa-IN",
+                "Hindi (हिंदी)": "hi-IN",
+                "English": "en-IN",
+            }[lang_choice]
+
+            components.html(
+                f"""
+                <div style="font-family: sans-serif;">
+                  <button id="micBtn" style="background:#16a34a;color:white;border:none;
+                      padding:10px 18px;border-radius:8px;font-size:15px;cursor:pointer;">
+                      🎤 Start speaking</button>
+                  <span id="status" style="margin-left:10px;color:#475569;"></span>
+                  <textarea id="out" rows="3" style="width:100%;margin-top:10px;
+                      padding:8px;border-radius:8px;border:1px solid #cbd5e1;font-size:15px;"
+                      placeholder="Your spoken words appear here..."></textarea>
+                </div>
+                <script>
+                  const btn = document.getElementById('micBtn');
+                  const out = document.getElementById('out');
+                  const status = document.getElementById('status');
+                  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+                  if (!SR) {{
+                    status.textContent = "Voice not supported in this browser. Please use Chrome.";
+                    btn.disabled = true;
+                  }} else {{
+                    const rec = new SR();
+                    rec.lang = "{lang_code}";
+                    rec.continuous = false;
+                    rec.interimResults = true;
+                    let finalText = "";
+                    btn.onclick = () => {{ finalText = out.value; status.textContent = "Listening..."; rec.start(); }};
+                    rec.onresult = (e) => {{
+                      let interim = "";
+                      for (let i = e.resultIndex; i < e.results.length; i++) {{
+                        if (e.results[i].isFinal) finalText += e.results[i][0].transcript + " ";
+                        else interim += e.results[i][0].transcript;
+                      }}
+                      out.value = (finalText + interim).trim();
+                    }};
+                    rec.onerror = (e) => {{ status.textContent = "Error: " + e.error + " (try Chrome / allow mic)"; }};
+                    rec.onend = () => {{ status.textContent = "Done. Copy the text into the message box below."; }};
+                  }}
+                </script>
+                """,
+                height=200,
+            )
+
+        if user_query := st.chat_input("Type your symptoms / ਆਪਣੇ ਲੱਛਣ ਲਿਖੋ..."):
             st.chat_message("user").write(user_query)
             st.session_state.messages.append({"role": "user", "content": user_query})
             st.session_state.user_message_count += 1
